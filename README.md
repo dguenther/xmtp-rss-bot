@@ -15,7 +15,11 @@ This project primarily exists to experiment with xmtp, and likely has bugs, miss
 - `unsubscribe <subreddit>`: Unsubscribe from a specific subreddit
 - `stop`: Unsubscribe from all subreddits
 
-## Setup
+## Running the Bot
+
+A Docker image is available at `ghcr.io/dguenther/xmtp-rss-bot:latest`, otherwise you can follow the steps below to run from source.
+
+## Developer Setup
 
 1. Install [Bun](https://bun.sh).
 
@@ -48,7 +52,7 @@ DATA_DIR=data                 # Directory to store user data
 bun install
 ```
 
-## Running the Bot
+6. Run the bot:
 
 ```bash
 bun run index.ts
