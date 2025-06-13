@@ -14,7 +14,8 @@ export interface RedditPost {
 const parser = new Parser({
   customFields: {
     item: ['author', 'id']
-  }
+  },
+  timeout: 5000,
 });
 
 /**
