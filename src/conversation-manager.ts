@@ -123,31 +123,6 @@ export class ConversationManager {
   }
 
   /**
-   * Send a message to all conversations
-   * @param message - The message to send
-   */
-  async broadcastToAllConversations(message: string) {
-    const conversations = await this.getAllConversations();
-    console.log(`Broadcasting message to all conversations...`);
-    
-    let sentCount = 0;
-
-    for (const conversation of conversations) {
-      try {
-        const address = await this.getAddressFromConversation(conversation);
-        
-        await conversation.send(message);
-        console.log(`Message sent to ${address}`);
-        sentCount++;
-      } catch (error) {
-        console.error(`Failed to send message to conversation:`, error);
-      }
-    }
-    
-    console.log(`Broadcast complete: ${sentCount} messages sent`);
-  }
-
-  /**
    * Send a Reddit post to subscribers of a specific subreddit
    * @param post - The Reddit post to send
    * @param subreddit - The subreddit the post is from
