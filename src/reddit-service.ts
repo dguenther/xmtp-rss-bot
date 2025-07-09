@@ -49,12 +49,30 @@ export async function fetchRedditTopPosts(subreddit: string = 'all', limit: numb
 }
 
 /**
+ * Trim the title portion from Reddit URLs to make them shorter
+ * @param url - The Reddit URL to trim
+ * @returns The trimmed URL without the title portion
+ */
+export function trimRedditUrl(url: string): string {
+  // Match Reddit URL pattern: https://[subdomain.]reddit.com/r/[subreddit]/comments/[post_id]/[title]/
+  const redditUrlPattern = /^(https?:\/\/(?:\w+\.)?reddit\.com\/r\/\w+\/comments\/\w+)\/.*/;
+  const match = url.match(redditUrlPattern);
+  
+  if (match) {
+    return match[1]; // Return everything up to the post ID
+  }
+  
+  return url; // Return original URL if it doesn't match the pattern
+}
+
+/**
  * Format a Reddit post as a readable message
  * @param post - The Reddit post to format
  * @returns A formatted string for the post
  */
 export function formatRedditPost(post: RedditPost): string {
+  const trimmedLink = trimRedditUrl(post.link);
   return `📰 ${post.title}
-🔗 Link: ${post.link}
+🔗 Link: ${trimmedLink}
 ${post.pubDate ? `⏰ Published: ${new Date(post.pubDate).toUTCString()}` : ''}`;
 }
