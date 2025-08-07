@@ -92,113 +92,114 @@ async function main() {
 
   // Also continue to listen for incoming messages
   console.log("Waiting for messages...");
-  const stream = await client.conversations.streamAllMessages();
-
-  for await (const message of stream) {
-    if (
-      message?.senderInboxId.toLowerCase() === client.inboxId.toLowerCase() ||
-      message?.contentType?.typeId !== "text"
-    ) {
-      continue;
-    }
-
-    const conversation = await client.conversations.getConversationById(
-      message.conversationId,
-    );
-
-    if (!conversation) {
-      console.log("Unable to find conversation, skipping");
-      continue;
-    }
-
-    const inboxState = await client.preferences.inboxStateFromInboxIds([
-      message.senderInboxId,
-    ]);
-    const addressFromInboxId = inboxState[0].identifiers[0].identifier;
-    
-    // Extract the text content
-    const textContent = message.content as string;
-    const lowerCaseText = textContent.toLowerCase().trim();
-    console.log(`Received message from ${addressFromInboxId}: ${textContent}`);
-    
-    // Handle stop command
-    if (lowerCaseText === "stop") {
-      const hadSubscriptions = conversationManager.unsubscribeFromAllSubreddits(addressFromInboxId);
-      if (hadSubscriptions) {
-        await conversation.send("You have been unsubscribed from all subreddits and will no longer receive Reddit posts.");
-      } else {
-        await conversation.send("You weren't subscribed to any subreddits.");
+  await client.conversations.streamAllMessages({
+    async onValue(message) {
+      if (
+        message?.senderInboxId.toLowerCase() === client.inboxId.toLowerCase() ||
+        message?.contentType?.typeId !== "text"
+      ) {
+        return;
       }
-      continue;
-    }
-    
 
-    
-    // Handle messages containing keywords for Reddit content
-    if (lowerCaseText.startsWith("reddit")) {
-      const parts = lowerCaseText.split(" ");
+      const conversation = await client.conversations.getConversationById(
+        message.conversationId,
+      );
+
+      if (!conversation) {
+        console.log("Unable to find conversation, skipping");
+        return;
+      }
+
+      const inboxState = await client.preferences.inboxStateFromInboxIds([
+        message.senderInboxId,
+      ]);
+      const addressFromInboxId = inboxState[0].identifiers[0].identifier;
+
+      // Extract the text content
+      const textContent = message.content as string;
+      const lowerCaseText = textContent.toLowerCase().trim();
+      console.log(`Received message from ${addressFromInboxId}: ${textContent}`);
       
-      if (parts.length === 1) {
-        // Just "reddit" - show user's subscriptions
-        const userSubs = conversationManager.getUserSubscriptions(addressFromInboxId);
-        if (userSubs.length === 0) {
-          await conversation.send(`You're not subscribed to any subreddits yet. Use "reddit <subreddit>" to subscribe to a subreddit. For example: "reddit games"`);
+      // Handle stop command
+      if (lowerCaseText === "stop") {
+        const hadSubscriptions = conversationManager.unsubscribeFromAllSubreddits(addressFromInboxId);
+        if (hadSubscriptions) {
+          await conversation.send("You have been unsubscribed from all subreddits and will no longer receive Reddit posts.");
         } else {
-          await conversation.send(`You're subscribed to: ${userSubs.map(sub => `r/${sub}`).join(", ")}\n\nTo get posts from a specific subreddit, use "reddit <subreddit>"`);
+          await conversation.send("You weren't subscribed to any subreddits.");
         }
-      } else if (parts.length === 2) {
-        const subreddit = parts[1];
+        return;
+      }
+
+      // Handle messages containing keywords for Reddit content
+      if (lowerCaseText.startsWith("reddit")) {
+        const parts = lowerCaseText.split(" ");
         
-        // Check if user is subscribed to this subreddit
-        const userSubs = conversationManager.getUserSubscriptions(addressFromInboxId);
-        const isSubscribed = userSubs.includes(subreddit.toLowerCase());
-        
-        if (!isSubscribed) {
-          // Subscribe them and send recent posts
-          conversationManager.subscribeToSubreddit(addressFromInboxId, subreddit);
-          await conversation.send(`✅ Subscribed to r/${subreddit}! You'll now receive new posts from this subreddit.\n\nHere are some recent posts:`);
-        }
-        
-        // Send recent posts from this subreddit
-        console.log(`Sending recent Reddit posts from r/${subreddit} to ${addressFromInboxId}...`);
-        const posts = await fetchRedditTopPosts(subreddit, postLimit);
-        
-        if (posts.length > 0) {
-          for (const post of posts) {
-            const formattedPost = formatRedditPost(post);
-            await conversation.send(formattedPost);
-            console.log(`Sent post from r/${subreddit}: ${post.title}`);
+        if (parts.length === 1) {
+          // Just "reddit" - show user's subscriptions
+          const userSubs = conversationManager.getUserSubscriptions(addressFromInboxId);
+          if (userSubs.length === 0) {
+            await conversation.send(`You're not subscribed to any subreddits yet. Use "reddit <subreddit>" to subscribe to a subreddit. For example: "reddit games"`);
+          } else {
+            await conversation.send(`You're subscribed to: ${userSubs.map(sub => `r/${sub}`).join(", ")}\n\nTo get posts from a specific subreddit, use "reddit <subreddit>"`);
+          }
+        } else if (parts.length === 2) {
+          const subreddit = parts[1];
+
+          // Check if user is subscribed to this subreddit
+          const userSubs = conversationManager.getUserSubscriptions(addressFromInboxId);
+          const isSubscribed = userSubs.includes(subreddit.toLowerCase());
+
+          if (!isSubscribed) {
+            // Subscribe them and send recent posts
+            conversationManager.subscribeToSubreddit(addressFromInboxId, subreddit);
+            await conversation.send(`✅ Subscribed to r/${subreddit}! You'll now receive new posts from this subreddit.\n\nHere are some recent posts:`);
+          }
+
+          // Send recent posts from this subreddit
+          console.log(`Sending recent Reddit posts from r/${subreddit} to ${addressFromInboxId}...`);
+          const posts = await fetchRedditTopPosts(subreddit, postLimit);
+
+          if (posts.length > 0) {
+            for (const post of posts) {
+              const formattedPost = formatRedditPost(post);
+              await conversation.send(formattedPost);
+              console.log(`Sent post from r/${subreddit}: ${post.title}`);
+            }
+          } else {
+            await conversation.send(`Sorry, I couldn't fetch any posts from r/${subreddit} at the moment.`);
           }
         } else {
-          await conversation.send(`Sorry, I couldn't fetch any posts from r/${subreddit} at the moment.`);
+          await conversation.send(`To use Reddit commands:\n- "reddit" to see your subscriptions\n- "reddit <subreddit>" to subscribe and get posts\n- "unsubscribe <subreddit>" to unsubscribe`);
         }
-      } else {
-        await conversation.send(`To use Reddit commands:\n- "reddit" to see your subscriptions\n- "reddit <subreddit>" to subscribe and get posts\n- "unsubscribe <subreddit>" to unsubscribe`);
-      }
-    } else if (lowerCaseText.startsWith("unsubscribe")) {
-      const parts = lowerCaseText.split(" ");
-      
-      if (parts.length === 2) {
-        const subreddit = parts[1];
-        const wasUnsubscribed = conversationManager.unsubscribeFromSubreddit(addressFromInboxId, subreddit);
+      } else if (lowerCaseText.startsWith("unsubscribe")) {
+        const parts = lowerCaseText.split(" ");
         
-        if (wasUnsubscribed) {
-          await conversation.send(`✅ Unsubscribed from r/${subreddit}. You'll no longer receive posts from this subreddit.`);
+        if (parts.length === 2) {
+          const subreddit = parts[1];
+          const wasUnsubscribed = conversationManager.unsubscribeFromSubreddit(addressFromInboxId, subreddit);
+
+          if (wasUnsubscribed) {
+            await conversation.send(`✅ Unsubscribed from r/${subreddit}. You'll no longer receive posts from this subreddit.`);
+          } else {
+            await conversation.send(`You weren't subscribed to r/${subreddit}.`);
+          }
         } else {
-          await conversation.send(`You weren't subscribed to r/${subreddit}.`);
+          await conversation.send(`Use "unsubscribe <subreddit>" to unsubscribe from a subreddit. For example: "unsubscribe games"`);
         }
       } else {
-        await conversation.send(`Use "unsubscribe <subreddit>" to unsubscribe from a subreddit. For example: "unsubscribe games"`);
-      }
-    } else {
-      // Send help message for unknown commands
-      await conversation.send(`Sorry, I don't understand that command. Try these commands:
+        // Send help message for unknown commands
+        await conversation.send(`Sorry, I don't understand that command. Try these commands:
 - Send "reddit" to see your subscriptions
 - Send "reddit <subreddit>" to subscribe and get posts (e.g., "reddit games")
 - Send "unsubscribe <subreddit>" to unsubscribe from a subreddit
 - Send "stop" to unsubscribe from all subreddits`);
-    }
-  }
+      }
+    },
+    onError(error) {
+      console.error("Error streaming messages:", error);
+    },
+  });
 }
 
 main().catch(console.error);
