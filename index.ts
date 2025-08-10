@@ -115,12 +115,12 @@ async function main() {
       message.senderInboxId,
     ]);
     const addressFromInboxId = inboxState[0].identifiers[0].identifier;
-    
+
     // Extract the text content
     const textContent = message.content as string;
     const lowerCaseText = textContent.toLowerCase().trim();
     console.log(`Received message from ${addressFromInboxId}: ${textContent}`);
-    
+
     // Handle stop command
     if (lowerCaseText === "stop") {
       const hadSubscriptions = conversationManager.unsubscribeFromAllSubreddits(addressFromInboxId);
@@ -131,9 +131,9 @@ async function main() {
       }
       continue;
     }
-    
 
-    
+
+
     // Handle messages containing keywords for Reddit content
     if (lowerCaseText.startsWith("reddit")) {
       const parts = lowerCaseText.split(" ");
@@ -152,17 +152,17 @@ async function main() {
         // Check if user is subscribed to this subreddit
         const userSubs = conversationManager.getUserSubscriptions(addressFromInboxId);
         const isSubscribed = userSubs.includes(subreddit.toLowerCase());
-        
+
         if (!isSubscribed) {
           // Subscribe them and send recent posts
           conversationManager.subscribeToSubreddit(addressFromInboxId, subreddit);
           await conversation.send(`✅ Subscribed to r/${subreddit}! You'll now receive new posts from this subreddit.\n\nHere are some recent posts:`);
         }
-        
+
         // Send recent posts from this subreddit
         console.log(`Sending recent Reddit posts from r/${subreddit} to ${addressFromInboxId}...`);
         const posts = await fetchRedditTopPosts(subreddit, postLimit);
-        
+
         if (posts.length > 0) {
           for (const post of posts) {
             const formattedPost = formatRedditPost(post);
@@ -177,7 +177,7 @@ async function main() {
       }
     } else if (lowerCaseText.startsWith("unsubscribe")) {
       const parts = lowerCaseText.split(" ");
-      
+
       if (parts.length === 2) {
         const subreddit = parts[1];
         const wasUnsubscribed = conversationManager.unsubscribeFromSubreddit(addressFromInboxId, subreddit);
